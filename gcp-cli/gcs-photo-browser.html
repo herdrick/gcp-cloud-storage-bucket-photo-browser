@@ -223,20 +223,12 @@
     padding: 0 0 80px;
   }
 
-  /* ── DATE GROUP ── */
-  .date-group { margin-bottom: 4px; }
   .date-label {
     padding: 20px 16px 10px;
     font-size: 13px;
     font-weight: 500;
     color: var(--text2);
     letter-spacing: 0.02em;
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    z-index: 10;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
   }
   .date-label .count { font-weight: 400; color: var(--text3); margin-left: 6px; }
 
@@ -544,7 +536,7 @@
     <div id="status-wrap">
       <div class="big">Your memories,</div>
       <div class="big" style="font-style:normal;color:var(--text3);font-size:28px;">beautifully browsed.</div>
-      <p>Sign in with your Google account, enter a bucket name, and browse photos &amp; videos just like Google Photos — grouped by date, infinitely scrollable. Or leave the bucket empty and enter a project ID to browse your buckets first.</p>
+      <p>Sign in with your Google account, enter a bucket name, and browse photos &amp; videos. Or leave the bucket empty and enter a project ID to browse your buckets first.</p>
       <div class="hint">
         <strong style="color:var(--text);">Setup checklist</strong><br><br>
         1. Your bucket needs <code>Storage Object Viewer</code> access for your Google account<br>
@@ -613,8 +605,7 @@ const VIDEO_EXTS = new Set(['mp4','mov','avi','mkv','webm','m4v','3gp','mts','m2
 // ─────────────────────────────────────────────
 let accessToken    = null;
 let tokenExpiry    = 0;
-let allItems       = [];   // all media items loaded so far (flat, sorted)
-let groups         = [];   // [{label, items:[]}]
+let allItems       = [];   // all media items loaded so far
 let pageToken      = null; // GCS nextPageToken
 let loading        = false;
 let allLoaded      = false;
@@ -775,7 +766,7 @@ function renderBucketTiles(buckets) {
 }
 
 function resetGallery() {
-  allItems = []; groups = []; pageToken = null; allLoaded = false; renderedCount = 0;
+  allItems = []; pageToken = null; allLoaded = false; renderedCount = 0;
   currentFolders = [];
   document.getElementById('gallery').innerHTML = '';
   document.getElementById('load-more-spinner').style.display = 'none';
@@ -895,10 +886,7 @@ async function loadPage(bucket, prefix) {
       bucket
     }));
 
-    // Insert in sorted order (newest first)
-    allItems = allItems.concat(items).sort((a,b) => b.created - a.created);
-
-    rebuildGroups();
+    allItems = allItems.concat(items);
     renderNext();
 
     if (allItems.length === 0 && currentFolders.length === 0 && allLoaded) showStatus('empty');
@@ -912,23 +900,6 @@ async function loadPage(bucket, prefix) {
   }
   loading = false;
   document.getElementById('load-more-spinner').style.display = 'none';
-}
-
-// ─────────────────────────────────────────────
-// GROUPING
-// ─────────────────────────────────────────────
-function dateKey(d) {
-  return d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
-}
-
-function rebuildGroups() {
-  const map = new Map();
-  for (const item of allItems) {
-    const k = dateKey(item.created);
-    if (!map.has(k)) map.set(k, { label: k, items: [] });
-    map.get(k).items.push(item);
-  }
-  groups = Array.from(map.values());
 }
 
 // ─────────────────────────────────────────────
@@ -966,49 +937,26 @@ function renderFolderTiles() {
 }
 
 // ─────────────────────────────────────────────
-// DOM RENDERING (incremental)
+// DOM RENDERING (incremental flat grid)
 // ─────────────────────────────────────────────
 function renderNext() {
-  // We render from allItems[renderedCount] forward, up to RENDER_BATCH more
   const target = Math.min(renderedCount + RENDER_BATCH, allItems.length);
   if (target <= renderedCount) return;
 
-  // Find which groups/items are already rendered and which need adding
-  // For simplicity: rebuild full group DOM but only add new item thumbs
-  // (use data-index on each thumb to avoid duplicates)
   const gallery = document.getElementById('gallery');
-  const rendered = new Set([...gallery.querySelectorAll('.thumb[data-idx]')].map(el => +el.dataset.idx));
+  let grid = document.getElementById('main-grid');
+  if (!grid) {
+    grid = document.createElement('div');
+    grid.className = 'grid';
+    grid.id = 'main-grid';
+    gallery.appendChild(grid);
+  }
 
-  for (let gi = 0; gi < groups.length; gi++) {
-    const g = groups[gi];
-    let groupEl = gallery.querySelector(`.date-group[data-group="${gi}"]`);
-    if (!groupEl) {
-      groupEl = document.createElement('div');
-      groupEl.className = 'date-group';
-      groupEl.dataset.group = gi;
-      groupEl.innerHTML = `<div class="date-label">${g.label}<span class="count"></span></div><div class="grid"></div>`;
-      gallery.appendChild(groupEl);
-    }
-    const grid = groupEl.querySelector('.grid');
-    const label = groupEl.querySelector('.date-label .count');
-
-    // Add any unrendered items in this group
-    for (const item of g.items) {
-      const idx = allItems.indexOf(item);
-      if (idx >= target) break;
-      if (rendered.has(idx)) continue;
-      const thumbEl = createThumb(item, idx);
-      grid.appendChild(thumbEl);
-    }
-
-    // Update count
-    const visibleCount = grid.querySelectorAll('.thumb').length;
-    label.textContent = `· ${visibleCount}`;
+  for (let i = renderedCount; i < target; i++) {
+    grid.appendChild(createThumb(allItems[i], i));
   }
 
   renderedCount = target;
-
-  // Lazy-load visible thumbnails
   setTimeout(observeThumbs, 50);
 }
 
