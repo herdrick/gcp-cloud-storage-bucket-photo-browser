@@ -464,7 +464,8 @@
     <span id="auth-dot"></span>
     <span id="auth-label">Sign in with Google</span>
   </button>
-  <input id="bucket-input" type="text" placeholder="your-bucket-name" spellcheck="false">
+  <input id="project-input" style="flex:0.5;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:6px 14px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;" type="text" placeholder="project ID (for bucket listing)" spellcheck="false">
+  <input id="bucket-input" type="text" placeholder="bucket name (optional)" spellcheck="false">
   <input id="prefix-input" style="flex:0.5;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:6px 14px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;" type="text" placeholder="prefix/ (optional)">
   <label class="folder-toggle">
     <input type="checkbox" id="folder-mode-toggle" onchange="onFolderModeChange()">
@@ -481,7 +482,7 @@
     <div id="status-wrap">
       <div class="big">Your memories,</div>
       <div class="big" style="font-style:normal;color:var(--text3);font-size:28px;">beautifully browsed.</div>
-      <p>Sign in with your Google account, enter a bucket name, and browse photos &amp; videos just like Google Photos — grouped by date, infinitely scrollable.</p>
+      <p>Sign in with your Google account, enter a bucket name, and browse photos &amp; videos just like Google Photos — grouped by date, infinitely scrollable. Or leave the bucket empty and enter a project ID to browse your buckets first.</p>
       <div class="hint">
         <strong style="color:var(--text);">Setup checklist</strong><br><br>
         1. Your bucket needs <code>Storage Object Viewer</code> access for your Google account<br>
@@ -618,7 +619,12 @@ function authHeaders() {
 // ─────────────────────────────────────────────
 async function startLoad() {
   const bucket = document.getElementById('bucket-input').value.trim();
-  if (!bucket) return;
+
+  if (!bucket) {
+    // No bucket specified — list buckets for the project
+    await listBuckets();
+    return;
+  }
 
   folderMode = document.getElementById('folder-mode-toggle').checked;
 
@@ -635,6 +641,70 @@ async function startLoad() {
     showStatus('loading');
     await loadPage(bucket, prefix);
   }
+}
+
+async function listBuckets() {
+  const project = document.getElementById('project-input').value.trim();
+  if (!project) {
+    showStatus('error', 'Enter a project ID to list buckets, or enter a bucket name directly.');
+    return;
+  }
+  if (!accessToken) {
+    showStatus('error', 'Sign in with Google to list buckets.');
+    return;
+  }
+
+  resetGallery();
+  showStatus('loading');
+
+  try {
+    const params = new URLSearchParams({ project });
+    const res = await fetch(`${GCS_API}/b?${params}`, { headers: authHeaders() });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    const buckets = data.items || [];
+    if (buckets.length === 0) {
+      showStatus('empty');
+      return;
+    }
+    hideStatus();
+    renderBucketTiles(buckets);
+  } catch(e) {
+    showStatus('error', e.message);
+  }
+}
+
+function renderBucketTiles(buckets) {
+  const gallery = document.getElementById('gallery');
+  gallery.innerHTML = '';
+
+  const container = document.createElement('div');
+  container.className = 'folder-section';
+
+  const label = document.createElement('div');
+  label.className = 'date-label';
+  label.innerHTML = `Buckets<span class="count">· ${buckets.length}</span>`;
+  container.appendChild(label);
+
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  container.appendChild(grid);
+
+  for (const b of buckets) {
+    const tile = document.createElement('div');
+    tile.className = 'folder-tile';
+    tile.onclick = () => {
+      document.getElementById('bucket-input').value = b.name;
+      startLoad();
+    };
+    tile.innerHTML = `<div class="folder-icon">🪣</div><div class="folder-name">${escHtml(b.name)}</div>`;
+    grid.appendChild(tile);
+  }
+
+  gallery.appendChild(container);
 }
 
 function resetGallery() {
@@ -1068,7 +1138,7 @@ function renderLightbox() {
 // ─────────────────────────────────────────────
 // KEYBOARD SHORTCUT: Enter in inputs
 // ─────────────────────────────────────────────
-['bucket-input','prefix-input'].forEach(id => {
+['project-input','bucket-input','prefix-input'].forEach(id => {
   document.getElementById(id).addEventListener('keydown', e => {
     if (e.key === 'Enter') startLoad();
   });
