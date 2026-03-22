@@ -522,7 +522,7 @@
   <input id="bucket-input" type="text" placeholder="bucket name (optional)" spellcheck="false">
   <input id="prefix-input" style="flex:0.5;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:6px 14px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;" type="text" placeholder="prefix/ (optional)">
   <label class="folder-toggle">
-    <input type="checkbox" id="folder-mode-toggle" onchange="onFolderModeChange()">
+    <input type="checkbox" id="folder-mode-toggle" checked onchange="onFolderModeChange()">
     Show folders
   </label>
   <button id="btn-load" onclick="startLoad()">Browse</button>
@@ -598,7 +598,7 @@ const GCS_API   = 'https://storage.googleapis.com/storage/v1';
 const PAGE_SIZE = 100;
 
 const IMAGE_EXTS = new Set(['jpg','jpeg','png','gif','webp','heic','heif','avif','bmp','tiff','tif']);
-const VIDEO_EXTS = new Set(['mp4','mov','avi','mkv','webm','m4v','3gp','mts','m2ts']);
+const VIDEO_EXTS = new Set(['mp4','mov','webm','m4v','3gp']);
 
 // ─────────────────────────────────────────────
 // STATE
@@ -615,7 +615,7 @@ const RENDER_BATCH = 80;   // items to add to DOM at a time
 let lbIndex = 0;           // lightbox current index into allItems
 
 // Folder mode state
-let folderMode     = false;
+let folderMode     = true;
 let currentPath    = '';   // current folder path (e.g. "photos/2024/")
 let currentFolders = [];   // subfolder prefixes at current level
 
