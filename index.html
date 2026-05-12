@@ -1190,6 +1190,19 @@ function buildMetaTable(m) {
   }
   function fmtDate(s) { return s ? new Date(s).toLocaleString() : ''; }
 
+  // Check for GPS metadata first
+  let html = '';
+  if (m.metadata && m.metadata['gps-latitude'] && m.metadata['gps-longitude']) {
+    const lat = m.metadata['gps-latitude'];
+    const lon = m.metadata['gps-longitude'];
+    const mapsUrl = `https://www.google.com/maps?q=${encodeURIComponent(lat)},${encodeURIComponent(lon)}`;
+    html = `<div style="margin-bottom:20px;padding:12px;background:rgba(232,200,122,0.1);border:1px solid rgba(232,200,122,0.3);border-radius:6px;">
+      <div style="color:var(--accent);font-weight:500;margin-bottom:6px;">📍 GPS Location</div>
+      <div style="color:var(--text);font-size:13px;margin-bottom:8px;font-family:monospace;">${escHtml(lat)}, ${escHtml(lon)}</div>
+      <a href="${escHtml(mapsUrl)}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:12px;padding:4px 8px;background:rgba(232,200,122,0.15);border-radius:4px;display:inline-block;transition:background 0.15s;" onmouseover="this.style.background='rgba(232,200,122,0.25)'" onmouseout="this.style.background='rgba(232,200,122,0.15)'">↗ View on Google Maps</a>
+    </div>`;
+  }
+
   row('Name', m.name);
   row('Bucket', m.bucket);
   row('Size', fmtSize(parseInt(m.size || 0)) + ` (${parseInt(m.size || 0).toLocaleString()} bytes)`);
@@ -1214,10 +1227,12 @@ function buildMetaTable(m) {
   row('Retention Expiration', fmtDate(m.retentionExpirationTime));
   row('Custom Time', fmtDate(m.customTime));
 
-  // Custom metadata
+  // Custom metadata (skip GPS since we showed it above)
   if (m.metadata && Object.keys(m.metadata).length > 0) {
     for (const [k, v] of Object.entries(m.metadata)) {
-      row(`metadata.${k}`, v);
+      if (k !== 'gps-latitude' && k !== 'gps-longitude') {
+        row(`metadata.${k}`, v);
+      }
     }
   }
 
@@ -1231,7 +1246,7 @@ function buildMetaTable(m) {
   row('Self Link', m.selfLink);
   row('Media Link', m.mediaLink);
 
-  return `<table>${rows.join('')}</table>`;
+  return html + `<table>${rows.join('')}</table>`;
 }
 
 // ─────────────────────────────────────────────
