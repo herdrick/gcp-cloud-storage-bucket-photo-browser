@@ -1,8 +1,6 @@
-#!/bin/bash
-
-#
-
+#!/usr/bin/env bash
 set -e
+
 
 if [[ $# -lt 3 ]]; then
     echo "Usage: $0 <zipfile> <gcs_path>"
