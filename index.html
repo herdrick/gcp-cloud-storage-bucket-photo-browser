@@ -429,7 +429,6 @@
     cursor: pointer;
   }
   #lb-meta-close:hover { background: var(--bg3); color: var(--text); }
-  #lb-date { font-size: 12px; color: var(--text3); white-space: nowrap; }
   #lb-trash-btn {
     background: transparent;
     color: var(--red);
@@ -462,19 +461,6 @@
     100% { background: rgba(255,255,255,0.08); }
   }
   #lb-prev.highlight, #lb-next.highlight { animation: nav-flash-yellow 4s ease-out forwards; }
-  #lb-download {
-    background: var(--surface);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 6px 14px;
-    font-family: var(--font);
-    font-size: 12px;
-    cursor: pointer;
-    text-decoration: none;
-    transition: background 0.15s;
-  }
-  #lb-download:hover { background: var(--bg3); }
 
   #lb-body {
     flex: 1;
@@ -671,8 +657,6 @@
     <button id="lb-trash-btn" onclick="lbTrash()">Mark as trash</button>
     <span id="lb-action-status"></span>
     <div style="flex:1"></div>
-    <div id="lb-date"></div>
-    <a id="lb-download" target="_blank">↓ Download</a>
   </div>
   <div id="lb-body">
     <button id="lb-prev" onclick="lbNav(-1)">‹</button>
@@ -1174,12 +1158,9 @@ function renderLightbox() {
   document.getElementById('lb-meta-panel').classList.remove('open');
 
   document.getElementById('lb-name').textContent = item.name.split('/').pop();
-  document.getElementById('lb-date').textContent = item.created.toLocaleString();
   document.getElementById('lb-size').textContent = fmtSize(item.size);
   document.getElementById('lb-type').textContent = item.contentType || (item.isVideo ? 'video' : 'image');
   document.getElementById('lb-counter').textContent = `${lbIndex + 1} / ${allItems.length}${allLoaded ? '' : '+'}`;
-  document.getElementById('lb-download').href = tokenizeUrl(item.url);
-  document.getElementById('lb-download').download = item.name.split('/').pop();
 
   const mediaDiv = document.getElementById('lb-media');
   mediaDiv.innerHTML = '';
