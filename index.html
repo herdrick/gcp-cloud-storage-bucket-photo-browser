@@ -362,7 +362,6 @@
   }
   #lb-close:hover { color: var(--text); }
   #lb-name {
-    flex: 1;
     font-size: 13px;
     color: var(--accent);
     overflow: hidden;
@@ -443,38 +442,9 @@
     white-space: nowrap;
     transition: all 0.15s;
     flex-shrink: 0;
+    margin-left: 24px;
   }
   #lb-trash-btn:hover { background: rgba(224,82,82,0.1); }
-  #lb-cat-input {
-    width: 130px;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 5px 13px;
-    color: var(--text);
-    font-family: var(--font);
-    font-size: 12px;
-    outline: none;
-    transition: border-color 0.2s;
-    flex-shrink: 0;
-  }
-  #lb-cat-input::placeholder { color: var(--text3); }
-  #lb-cat-input:focus { border-color: rgba(255,255,255,0.2); }
-  #lb-cat-btn {
-    background: var(--accent);
-    color: #1a1409;
-    border: none;
-    border-radius: 20px;
-    padding: 6px 14px;
-    font-family: var(--font);
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s;
-    flex-shrink: 0;
-  }
-  #lb-cat-btn:hover { background: var(--accent2); }
   #lb-action-status {
     font-size: 12px;
     white-space: nowrap;
@@ -557,20 +527,6 @@
     white-space: nowrap;
     min-width: 80px;
   }
-  #sel-dest {
-    flex: 1;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 6px 16px;
-    color: var(--text);
-    font-family: var(--font);
-    font-size: 13px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-  #sel-dest::placeholder { color: var(--text3); }
-  #sel-dest:focus { border-color: rgba(255,255,255,0.2); }
   #btn-trash {
     background: transparent;
     color: var(--red);
@@ -584,20 +540,6 @@
     transition: all 0.15s;
   }
   #btn-trash:hover { background: rgba(224,82,82,0.1); }
-  #btn-move {
-    background: var(--accent);
-    color: #1a1409;
-    border: none;
-    border-radius: 20px;
-    padding: 7px 16px;
-    font-family: var(--font);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s;
-  }
-  #btn-move:hover { background: var(--accent2); }
   #sel-confirm {
     font-size: 12px;
     color: #52c87a;
@@ -679,9 +621,7 @@
 
 <div id="select-bar">
   <span id="sel-count">0 selected</span>
-  <input id="sel-dest" type="text" placeholder="destination path (for Move)" spellcheck="false">
-  <button id="btn-trash" onclick="doTrash()">Trash</button>
-  <button id="btn-move" onclick="doMove()">Move</button>
+  <button id="btn-trash" onclick="doTrash()">Mark as trash</button>
   <span id="sel-confirm"></span>
 </div>
 
@@ -717,12 +657,11 @@
 <div id="lightbox">
   <div id="lb-topbar">
     <button id="lb-close" onclick="closeLightbox()">✕</button>
-    <button id="lb-trash-btn" onclick="lbTrash()">Trash</button>
     <div id="lb-name" onclick="toggleMetaPanel()"></div>
+    <button id="lb-trash-btn" onclick="lbTrash()">Mark as trash</button>
+    <div style="flex:1"></div>
     <div id="lb-date"></div>
     <span id="lb-action-status"></span>
-    <input id="lb-cat-input" type="text" placeholder="category" spellcheck="false">
-    <button id="lb-cat-btn" onclick="lbCategorize()">Categorize</button>
     <a id="lb-download" target="_blank">↓ Download</a>
   </div>
   <div id="lb-body">
@@ -1359,13 +1298,7 @@ function toggleSelectMode() {
   selectMode = document.getElementById('select-mode-toggle').checked;
   document.getElementById('select-bar').classList.toggle('visible', selectMode);
   document.body.classList.toggle('select-mode', selectMode);
-  if (selectMode) {
-    const destEl = document.getElementById('sel-dest');
-    if (!destEl.value) {
-      const bucket = document.getElementById('bucket-input').value.trim();
-      destEl.value = (bucket ? bucket + '/' : '') + currentPath;
-    }
-  } else {
+  if (!selectMode) {
     clearSelection();
   }
 }
@@ -1434,19 +1367,9 @@ function nowStamp() {
 
 async function doTrash() {
   if (selectedPaths.size === 0) return;
-  await writeManifest('trash');
+  await writeManifest();
 }
 
-async function doMove() {
-  if (selectedPaths.size === 0) return;
-  const dest = document.getElementById('sel-dest').value.trim();
-  if (!dest) { alert('Enter a destination path.'); return; }
-  if (!/^[A-Za-z0-9_\-\/]+$/.test(dest)) {
-    alert('Destination may only contain letters, digits, hyphens, underscores, and slashes.');
-    return;
-  }
-  await writeManifest('move', dest);
-}
 
 async function gcsUploadText(bucket, filename, content) {
   const url = `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucket)}/o?uploadType=media&name=${encodeURIComponent(filename)}`;
@@ -1461,20 +1384,13 @@ async function gcsUploadText(bucket, filename, content) {
   }
 }
 
-async function writeManifest(type, dest) {
+async function writeManifest() {
   const bucket = document.getElementById('bucket-input').value.trim();
   const paths = [...selectedPaths];
   const count = paths.length;
   const stamp = nowStamp();
-
-  let content, filename;
-  if (type === 'trash') {
-    content = paths.map(p => `gs://${bucket}/${p}`).join('\n') + '\n';
-    filename = `__marked_files/to-trash.${stamp}.txt`;
-  } else {
-    content = paths.map(p => `${dest}\tgs://${bucket}/${p}`).join('\n') + '\n';
-    filename = `__marked_files/to-move.${stamp}.txt`;
-  }
+  const content = paths.map(p => `gs://${bucket}/${p}`).join('\n') + '\n';
+  const filename = `__marked_files/to-trash.${stamp}.txt`;
 
   try {
     await gcsUploadText(bucket, filename, content);
@@ -1483,10 +1399,7 @@ async function writeManifest(type, dest) {
     return;
   }
 
-  const msg = type === 'trash'
-    ? `marked ${count} item${count !== 1 ? 's' : ''} as trash`
-    : `marked ${count} item${count !== 1 ? 's' : ''} to be moved to ${dest}`;
-  showSelectConfirmation(msg);
+  showSelectConfirmation(`marked ${count} item${count !== 1 ? 's' : ''} as trash`);
   clearSelection();
 }
 
@@ -1512,24 +1425,6 @@ async function lbTrash() {
   }
 }
 
-async function lbCategorize() {
-  const item = allItems[lbIndex];
-  if (!item) return;
-  const dest = document.getElementById('lb-cat-input').value.trim();
-  if (!dest) { alert("For that, you'll need to type a category in the box."); return; }
-  if (!/^[A-Za-z0-9_\-\/]+$/.test(dest)) {
-    alert('Category may only contain letters, digits, hyphens, underscores, and slashes.');
-    return;
-  }
-  const bucket = document.getElementById('bucket-input').value.trim();
-  try {
-    await gcsUploadText(bucket, `__marked_files/to-move.${nowStamp()}.txt`, `${dest}\tgs://${bucket}/${item.name}\n`);
-    showLbStatus(`marked to move to ${dest}`);
-    lbNav(1);
-  } catch(e) {
-    showLbStatus(`Error: ${e.message}`, true);
-  }
-}
 
 // ─────────────────────────────────────────────
 // KEYBOARD SHORTCUT: Enter in inputs
