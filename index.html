@@ -452,6 +452,16 @@
     text-overflow: ellipsis;
     flex-shrink: 1;
   }
+  @keyframes rft {
+    0%   { background: rgba(224,82,82,0.6); }
+    100% { background: transparent; }
+  }
+  #lb-action-status.flash-red { animation: rft 3s ease-out forwards; border-radius: 3px; padding: 1px 3px; }
+  @keyframes nav-flash-yellow {
+    0%   { background: #ffff00; }
+    100% { background: rgba(255,255,255,0.08); }
+  }
+  #lb-prev.highlight, #lb-next.highlight { animation: nav-flash-yellow 4s ease-out forwards; }
   #lb-download {
     background: var(--surface);
     color: var(--text);
@@ -659,9 +669,9 @@
     <button id="lb-close" onclick="closeLightbox()">✕</button>
     <div id="lb-name" onclick="toggleMetaPanel()"></div>
     <button id="lb-trash-btn" onclick="lbTrash()">Mark as trash</button>
+    <span id="lb-action-status"></span>
     <div style="flex:1"></div>
     <div id="lb-date"></div>
-    <span id="lb-action-status"></span>
     <a id="lb-download" target="_blank">↓ Download</a>
   </div>
   <div id="lb-body">
@@ -1145,6 +1155,11 @@ function lbKey(e) {
 function lbNav(dir) {
   lbIndex = Math.max(0, Math.min(allItems.length - 1, lbIndex + dir));
   renderLightbox();
+  const flashBtn = document.getElementById(dir > 0 ? 'lb-next' : 'lb-prev');
+  flashBtn.classList.remove('highlight');
+  void flashBtn.offsetWidth;
+  flashBtn.classList.add('highlight');
+  flashBtn.addEventListener('animationend', () => flashBtn.classList.remove('highlight'), { once: true });
   // Preload more if near end
   if (lbIndex > allItems.length - 10 && !allLoaded && !loading) {
     const bucket = document.getElementById('bucket-input').value.trim();
@@ -1406,8 +1421,15 @@ async function writeManifest() {
 let lbActionTimer = null;
 function showLbStatus(msg, isError) {
   const el = document.getElementById('lb-action-status');
-  el.style.color = isError ? 'var(--red)' : '#52c87a';
+  const isTrash = msg === 'marked as trash';
+  el.style.color = (isError || isTrash) ? 'var(--red)' : '#52c87a';
   el.textContent = msg;
+  el.classList.remove('flash-red');
+  void el.offsetWidth;
+  if (isTrash) {
+    el.classList.add('flash-red');
+    el.addEventListener('animationend', () => el.classList.remove('flash-red'), { once: true });
+  }
   clearTimeout(lbActionTimer);
   lbActionTimer = setTimeout(() => { el.textContent = ''; }, 5000);
 }
